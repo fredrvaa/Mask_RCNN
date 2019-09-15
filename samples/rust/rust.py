@@ -97,6 +97,65 @@ class RustDataset(utils.Dataset):
         assert subset in ["train", "val"]
         dataset_dir = os.path.join(dataset_dir, subset)
 
+        image_dir = os.path.join(dataset_dir, 'images')
+        masks_dir = os.path.join(dataset_dir, 'masks')
+        for file in os.listdir(image_dir):
+            image_path = os.path.join(image_dir, file)
+            print(file)
+            self.add_image(
+                "rust",
+                image_id=file,  # use file name as a unique image id
+                path=image_path,
+                masks_path=masks_dir)
+
+    def load_mask(self, image_id):
+        """Generate instance masks for an image.
+       Returns:
+        masks: A bool array of shape [height, width, instance count] with
+            one mask per instance.
+        class_ids: a 1D array of class IDs of the instance masks.
+        """
+        # If not a rust dataset image, delegate to parent class.
+        image_info = self.image_info[image_id]
+        if image_info["source"] != "rust":
+            return super(self.__class__, self).load_mask(image_id)
+
+        info = self.image_info[image_id]
+
+        mask = np.empty((866,1300,5))
+        mask_dir = "{}/{}".format(info["masks_path"], info["id"].rstrip(".jpg"))
+        for i, file in enumerate(os.listdir(mask_dir)):
+            im = skimage.io.imread("{}/{}".format(mask_dir,file))
+            mask[:,:,i] = im
+        mask = np.asarray(mask, dtype=np.uint8)
+
+        # Return mask, and array of class IDs of each instance. Since we have
+        # one class ID only, we return an array of 1s
+        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+
+    def image_reference(self, image_id):
+        """Return the path of the image."""
+        info = self.image_info[image_id]
+        if info["source"] == "rust":
+            return info["path"]
+        else:
+            super(self.__class__, self).image_reference(image_id)
+
+
+class ManualRustDataset(utils.Dataset):
+
+    def load_rust(self, dataset_dir, subset):
+        """Load a subset of the Balloon dataset.
+        dataset_dir: Root directory of the dataset.
+        subset: Subset to load: train or val
+        """
+        # Add classes. We have only one class to add.
+        self.add_class("rust", 1, "rust")
+
+        # Train or validation dataset?
+        assert subset in ["train", "val"]
+        dataset_dir = os.path.join(dataset_dir, subset)
+
         # Load annotations
         # VGG Image Annotator (up to version 1.6) saves each image in the form:
         # { 'filename': '28503151_5b5b7ec140_b.jpg',
@@ -178,7 +237,6 @@ class RustDataset(utils.Dataset):
             return info["path"]
         else:
             super(self.__class__, self).image_reference(image_id)
-
 
 def train(model):
     """Train the model."""

@@ -1,5 +1,9 @@
 # Data files and directories common in repo root
 datasets/
+datasets/*
+!datasets/generated_dataset/rust_dataset_generator
+!datasets/generated_dataset/bg_images
+!datasets/generated_dataset/rust_images
 logs/
 *.h5
 results/
