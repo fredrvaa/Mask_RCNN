@@ -147,9 +147,10 @@ def test_params():
         image = Image(1)
         image.create_image('C:/Users/Fredrik/Desktop/Mask_RCNN/datasets/generated_dataset/rust_images/rust1.jpg', 
                            'C:/Users/Fredrik/Desktop/Mask_RCNN/datasets/generated_dataset/bg_images/bg2.jpg',
-                           sigmas = (10, 20, 30, 40, 50, 60), radius = 3, num_locs = 5, num_points = 1000, 
+                           sigmas = (10, 20, 30, 40, 50, 60), radius = 3, num_locs = 5, num_points = 1500, 
                            kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (20, 30)))
         cv2.imshow('image', image.image)
+        cv2.imshow('mask', image.mask)
         cv2.waitKey(-1)
 
 
