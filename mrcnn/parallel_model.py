@@ -117,6 +117,8 @@ if __name__ == "__main__":
     from keras.datasets import mnist
     from keras.preprocessing.image import ImageDataGenerator
 
+    tf.Session(config=tf.ConfigProto(allow_growth=True))
+
     GPU_COUNT = 2
 
     # Root directory of the project
