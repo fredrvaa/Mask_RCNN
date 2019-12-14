@@ -1,4 +1,0 @@
-- Make custom datasetloader (interface with labelbox)
-- Make random rust generator that interfaces with datasetloader
-	- Thus generating synthetic dataset
-- Label a lot of rust images

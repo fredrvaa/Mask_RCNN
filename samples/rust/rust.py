@@ -33,6 +33,8 @@ import json
 import datetime
 import numpy as np
 import skimage.draw
+import cv2
+from imgaug import augmenters as iaa
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -63,7 +65,7 @@ class RustConfig(Config):
 
     #Setting backbone to resnet50
 
-    BACKBONE = "resnet50"
+    BACKBONE = "resnet101"
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
@@ -77,6 +79,7 @@ class RustConfig(Config):
 
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
+
 
 
 ############################################################
@@ -101,10 +104,12 @@ class RustDataset(utils.Dataset):
         masks_dir = os.path.join(dataset_dir, 'masks')
         for file in os.listdir(image_dir):
             image_path = os.path.join(image_dir, file)
-            print(file)
+            image = cv2.imread(image_path)
+            #print(image.shape[:2])
             self.add_image(
                 "rust",
                 image_id=file,  # use file name as a unique image id
+                size=image.shape[:2],
                 path=image_path,
                 masks_path=masks_dir)
 
@@ -122,16 +127,18 @@ class RustDataset(utils.Dataset):
 
         info = self.image_info[image_id]
 
-        mask = np.empty((866,1300,5))
-        mask_dir = "{}/{}".format(info["masks_path"], info["id"].rstrip(".jpg"))
-        for i, file in enumerate(os.listdir(mask_dir)):
-            im = skimage.io.imread("{}/{}".format(mask_dir,file))
-            mask[:,:,i] = im
-        mask = np.asarray(mask, dtype=np.uint8)
+        mask_dir = "{}/{}".format(info["masks_path"], info["id"].rstrip(".png"))
+        #mask_len = len([name for name in os.listdir(mask_dir) if os.path.isfile(os.path.join(mask_dir, name))])
+        #print(mask_dir, mask_len)
+        instance_masks = []
+        for file in os.listdir(mask_dir):
+            mask = skimage.io.imread("{}/{}".format(mask_dir,file), as_gray=True).astype(np.bool)
+            instance_masks.append(mask)
 
+        masks = np.stack(instance_masks, axis=-1)
         # Return mask, and array of class IDs of each instance. Since we have
         # one class ID only, we return an array of 1s
-        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+        return masks, np.ones([masks.shape[-1]], dtype=np.int32)
 
     def image_reference(self, image_id):
         """Return the path of the image."""
@@ -254,11 +261,29 @@ def train(model):
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
+
+    seq = iaa.Sometimes(0.833, iaa.Sequential([
+        iaa.Fliplr(0.5), # horizontal flips
+        iaa.Crop(percent=(0, 0.1)), # random crops
+        # Strengthen or weaken the contrast in each image.
+        iaa.ContrastNormalization((0.75, 1.5)),
+        iaa.Multiply((0.8, 1.2), per_channel=0.2),
+        # Apply affine transformations to each image.
+        # Scale/zoom them, translate/move them, rotate them and shear them.
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-180, 180),
+            shear=(-5, 5)
+        )
+    ], random_order=True))
+
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=30,
-                layers='heads')
+                epochs=100,
+                layers='heads',
+                augmentation=seq)
 
 
 def color_splash(image, mask):
@@ -331,6 +356,7 @@ def detect_and_color_splash(model, image_path=None, video_path=None):
                 count += 1
         vwriter.release()
     print("Saved to ", file_name)
+
 
 
 ############################################################

@@ -1,14 +1,15 @@
 # Data files and directories common in repo root
 datasets/*
-!datasets/generated_dataset/bg_images
-!datasets/generated_dataset/rust_images
-!datasets/generated_dataset/rust_dataset_generator
+images/*
 
 logs/
 *.h5
 results/
 temp/
 test/
+
+*.avi
+*.mp4
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
